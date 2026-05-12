@@ -23,6 +23,7 @@ export interface CreateUserRequest {
 
 export type UpdateUserRequest = Partial<Omit<CreateUserRequest, "password">> & {
   password?: string;
+  isActive?: boolean;
 };
 
 export interface UserListQuery {

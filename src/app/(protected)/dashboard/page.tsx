@@ -103,7 +103,7 @@ export default function DashboardPage() {
   }
 
   if (error) {
-    return <Alert type="error" message={error} />;
+    return <Alert type="error" title={error} />;
   }
 
   return (
@@ -128,7 +128,7 @@ export default function DashboardPage() {
             <Statistic
               title="Active Users"
               value={summary?.activeUsers}
-              valueStyle={{ color: "#3f8600" }}
+              styles={{ content: { color: "#3f8600" } }}
               prefix={<CheckCircleOutlined />}
             />
           </Card>
@@ -138,7 +138,7 @@ export default function DashboardPage() {
             <Statistic
               title="Inactive Users"
               value={summary?.inactiveUsers}
-              valueStyle={{ color: "#cf1322" }}
+              styles={{ content: { color: "#cf1322" } }}
               prefix={<CloseCircleOutlined />}
             />
           </Card>

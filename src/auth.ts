@@ -21,29 +21,41 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        const res = await fetch(`${BASE_URL}/auth/login`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            username: credentials.username,
-            password: credentials.password,
-          }),
-        });
+        try {
+          const res = await fetch(`${BASE_URL}/auth/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              username: credentials.username,
+              password: credentials.password,
+            }),
+          });
 
-        if (!res.ok) return null;
+          if (!res.ok) {
+            const errBody = await res.json().catch(() => ({}));
+            console.error("[auth] login failed", res.status, errBody);
+            return null;
+          }
 
-        const data = await res.json();
-        const accessToken: string = data.data?.accessToken;
-        if (!accessToken) return null;
+          const data = await res.json();
+          const accessToken: string = data.data?.accessToken;
+          if (!accessToken) {
+            console.error("[auth] no accessToken in response", data);
+            return null;
+          }
 
-        const payload = decodeJwtPayload(accessToken);
+          const payload = decodeJwtPayload(accessToken);
 
-        return {
-          id: String(payload.sub),
-          name: payload.username,
-          accessToken,
-          permissions: payload.permissions,
-        };
+          return {
+            id: String(payload.sub),
+            name: payload.username,
+            accessToken,
+            permissions: payload.permissions,
+          };
+        } catch (err) {
+          console.error("[auth] authorize error:", err);
+          return null;
+        }
       },
     }),
   ],

@@ -5,29 +5,31 @@ import {
   DashboardOutlined,
   UserOutlined,
   TeamOutlined,
-  SafetyOutlined,
   FileTextOutlined,
 } from "@ant-design/icons";
 import { usePathname, useRouter } from "next/navigation";
 import { useUiStore } from "@/store/ui.store";
+import { useAuth } from "@/hooks/useAuth";
 
 const { Sider } = Layout;
 
 const navItems = [
-  { key: "/dashboard", icon: <DashboardOutlined />, label: "Dashboard" },
-  { key: "/users", icon: <UserOutlined />, label: "Users" },
-  { key: "/roles", icon: <TeamOutlined />, label: "Roles" },
-  { key: "/permissions", icon: <SafetyOutlined />, label: "Permissions" },
-  { key: "/audit-logs", icon: <FileTextOutlined />, label: "Audit Logs" },
+  { key: "/dashboard", icon: <DashboardOutlined />, label: "Dashboard", permission: "dashboard:read" },
+  { key: "/users", icon: <UserOutlined />, label: "Users", permission: "user:read" },
+  { key: "/roles", icon: <TeamOutlined />, label: "Roles", permission: "role:read" },
+  { key: "/audit-logs", icon: <FileTextOutlined />, label: "Audit Logs", permission: "audit-log:read" },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { sidebarCollapsed, toggleSidebar } = useUiStore();
+  const { hasPermission } = useAuth();
+
+  const visibleItems = navItems.filter((item) => hasPermission(item.permission));
 
   const selectedKey =
-    navItems.find((item) => pathname.startsWith(item.key))?.key ?? "/dashboard";
+    visibleItems.find((item) => pathname.startsWith(item.key))?.key ?? visibleItems[0]?.key ?? "";
 
   return (
     <Sider
@@ -56,7 +58,7 @@ export default function Sidebar() {
         theme="dark"
         mode="inline"
         selectedKeys={[selectedKey]}
-        items={navItems}
+        items={visibleItems}
         onClick={({ key }) => router.push(key)}
       />
     </Sider>

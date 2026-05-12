@@ -1,8 +1,21 @@
 import axios from "axios";
-import { getSession } from "next-auth/react";
 import type { ApiResponse } from "@/types/api";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000/v1";
+
+let _accessToken: string | null = null;
+
+// Resolved once ApiTokenSync determines the initial session (authenticated or not).
+// Prevents API requests from racing ahead of the token on F5 / hard reload.
+let _resolveReady!: () => void;
+const _sessionReady = new Promise<void>((resolve) => {
+  _resolveReady = resolve;
+});
+
+export function setApiToken(token: string | null) {
+  _accessToken = token;
+  _resolveReady(); // no-op after first call — a Promise can only be resolved once
+}
 
 const instance = axios.create({
   baseURL: BASE_URL,
@@ -10,9 +23,9 @@ const instance = axios.create({
 });
 
 instance.interceptors.request.use(async (config) => {
-  const session = await getSession();
-  if (session?.accessToken) {
-    config.headers["Authorization"] = `Bearer ${session.accessToken}`;
+  await _sessionReady;
+  if (_accessToken) {
+    config.headers["Authorization"] = `Bearer ${_accessToken}`;
   }
   return config;
 });
