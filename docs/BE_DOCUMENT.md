@@ -14,6 +14,8 @@
    - [Permissions](#permissions)
    - [Audit Log](#audit-log)
    - [Dashboard](#dashboard)
+   - [Categories](#categories)
+   - [Products](#products)
 7. [Standard Response Format](#standard-response-format)
 8. [Authentication & Authorization](#authentication--authorization)
 9. [Global Providers](#global-providers)
@@ -32,6 +34,7 @@ A RESTful NestJS API providing:
 - Full user and role management
 - Automatic audit logging for every request/response
 - Dashboard analytics (summary counts, recent logs, user registration trend)
+- Product catalogue management with category organisation
 - Standardised API response envelope and global exception handling
 
 ---
@@ -93,7 +96,9 @@ src/
     ├── roles/         Role CRUD
     ├── permissions/   In-memory permission registry
     ├── audit-log/     Audit log query endpoint
-    └── dashboard/     Analytics endpoints
+    ├── dashboard/     Analytics endpoints
+    ├── category/      Category CRUD
+    └── product/       Product CRUD
 ```
 
 ---
@@ -143,6 +148,31 @@ Copy `.env.example` to `.env` and fill in values.
 | `name` | `String` unique | |
 | `permissions` | `Json?` | Array of permission strings, e.g. `["user:read","role:read"]`. Use `["*"]` for admin |
 | `description` | `String?` | |
+| `createdAt` | `DateTime` | |
+| `updatedAt` | `DateTime` | |
+
+### `categories`
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `Int` PK | Auto-increment |
+| `name` | `String` unique | |
+| `description` | `String?` | |
+| `createdAt` | `DateTime` | |
+| `updatedAt` | `DateTime` | |
+
+### `products`
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `Int` PK | Auto-increment |
+| `name` | `String` | |
+| `description` | `String?` | |
+| `price` | `Decimal(10,2)` | Non-negative |
+| `stock` | `Int` | Default `0` |
+| `status` | `ProductStatus` | `ACTIVE` \| `INACTIVE` — Default `ACTIVE` |
+| `images` | `String[]` | Array of image URLs |
+| `categoryId` | `Int` FK → `categories.id` | |
 | `createdAt` | `DateTime` | |
 | `updatedAt` | `DateTime` | |
 
@@ -350,7 +380,15 @@ Returns all permission strings registered in the system at startup.
     "role:update": "Update role",
     "role:delete": "Delete role",
     "audit-log:read": "Read audit log",
-    "dashboard:read": "Read dashboard"
+    "dashboard:read": "Read dashboard",
+    "category:create": "Create category",
+    "category:read": "Read category",
+    "category:update": "Update category",
+    "category:delete": "Delete category",
+    "product:create": "Create product",
+    "product:read": "Read product",
+    "product:update": "Update product",
+    "product:delete": "Delete product"
   },
   "timestamp": "..."
 }
@@ -437,6 +475,147 @@ Returns daily user registration counts for the past N days.
   ]
 }
 ```
+
+---
+
+### Categories
+
+> Requires authentication.
+
+#### `POST /v1/categories` — `category:create`
+
+Create a new category.
+
+**Request body:**
+```json
+{
+  "name": "Electronics",
+  "description": "Electronic devices and accessories"
+}
+```
+
+---
+
+#### `GET /v1/categories` — `category:read`
+
+List all categories.
+
+---
+
+#### `GET /v1/categories/:id` — `category:read`
+
+Get a single category by ID.
+
+**Errors:** `404` if not found.
+
+---
+
+#### `PATCH /v1/categories/:id` — `category:update`
+
+Update a category. All fields are optional.
+
+**Errors:** `404` if not found.
+
+---
+
+#### `DELETE /v1/categories/:id` — `category:delete`
+
+Delete a category by ID.
+
+**Errors:** `404` if not found, `400` if referenced by existing products (FK constraint).
+
+---
+
+### Products
+
+> Requires authentication.
+
+#### `POST /v1/products` — `product:create`
+
+Create a new product.
+
+**Request body:**
+```json
+{
+  "name": "Wireless Headphones",
+  "description": "Noise-cancelling over-ear headphones",
+  "price": 199.99,
+  "stock": 50,
+  "status": "ACTIVE",
+  "images": ["https://example.com/img1.jpg"],
+  "categoryId": 1
+}
+```
+
+`status` defaults to `ACTIVE` if omitted. `stock` defaults to `0`.
+
+---
+
+#### `GET /v1/products` — `product:read`
+
+List products with optional filters and pagination.
+
+**Query parameters:**
+
+| Param | Type | Description |
+|-------|------|-------------|
+| `name` | string | Case-insensitive partial match |
+| `status` | enum | `ACTIVE` \| `INACTIVE` |
+| `categoryId` | number | Filter by category |
+| `page` | number | Default `1` |
+| `limit` | number | Default `10` |
+
+**Response:**
+```json
+{
+  "success": true,
+  "statusCode": 200,
+  "data": {
+    "items": [
+      {
+        "id": 1,
+        "name": "Wireless Headphones",
+        "price": "199.99",
+        "stock": 50,
+        "status": "ACTIVE",
+        "images": ["https://example.com/img1.jpg"],
+        "categoryId": 1,
+        "category": { "id": 1, "name": "Electronics" },
+        "createdAt": "2026-05-13T00:00:00.000Z",
+        "updatedAt": "2026-05-13T00:00:00.000Z"
+      }
+    ],
+    "total": 1,
+    "page": 1,
+    "limit": 10
+  },
+  "timestamp": "..."
+}
+```
+
+---
+
+#### `GET /v1/products/:id` — `product:read`
+
+Get a single product by ID. Includes the related `category` object.
+
+**Errors:** `404` if not found.
+
+---
+
+#### `PATCH /v1/products/:id` — `product:update`
+
+Update a product. All fields are optional.
+
+**Errors:** `404` if not found.
+
+---
+
+#### `DELETE /v1/products/:id` — `product:delete`
+
+Delete a product by ID.
+
+**Errors:** `404` if not found.
 
 ---
 
@@ -548,6 +727,10 @@ The codebase separates reads from writes:
 | `RoleRepository` | `create`, `update`, `delete` |
 | `AuditLogQueries` | `find`, `count` |
 | `AuditLogRepository` | `create` |
+| `CategoryQueries` | `find`, `findOne`, `findUnique`, `count` |
+| `CategoryRepository` | `create`, `update`, `delete` |
+| `ProductQueries` | `find`, `findOne`, `findUnique`, `count` |
+| `ProductRepository` | `create`, `update`, `delete` |
 
 All classes extend `BaseQueries` / `BaseRepository` from `src/common/bases/`.
 

@@ -147,7 +147,6 @@ export default function RolesPage() {
 
   const openCreate = () => {
     setEditTarget(null);
-    form.resetFields();
     setModalOpen(true);
   };
 
@@ -155,16 +154,6 @@ export default function RolesPage() {
     setEditTarget(role);
     setModalOpen(true);
   };
-
-  useEffect(() => {
-    if (editTarget && modalOpen) {
-      form.setFieldsValue({
-        name: editTarget.name,
-        description: editTarget.description,
-        permissions: editTarget.permissions ?? [],
-      });
-    }
-  }, [editTarget, modalOpen, form]);
 
   const handleSubmit = async (values: CreateRoleRequest) => {
     setSubmitting(true);
@@ -335,6 +324,18 @@ export default function RolesPage() {
         okText={editTarget ? "Update" : "Create"}
         confirmLoading={submitting}
         width={560}
+        afterOpenChange={(open) => {
+          if (!open) return;
+          if (editTarget) {
+            form.setFieldsValue({
+              name: editTarget.name,
+              description: editTarget.description,
+              permissions: editTarget.permissions ?? [],
+            });
+          } else {
+            form.resetFields();
+          }
+        }}
       >
         <Form
           form={form}

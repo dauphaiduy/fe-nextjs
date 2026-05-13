@@ -6,6 +6,8 @@ import {
   UserOutlined,
   TeamOutlined,
   FileTextOutlined,
+  AppstoreOutlined,
+  ShoppingOutlined,
 } from "@ant-design/icons";
 import { usePathname, useRouter } from "next/navigation";
 import { useUiStore } from "@/store/ui.store";
@@ -18,6 +20,8 @@ const navItems = [
   { key: "/users", icon: <UserOutlined />, label: "Users", permission: "user:read" },
   { key: "/roles", icon: <TeamOutlined />, label: "Roles", permission: "role:read" },
   { key: "/audit-logs", icon: <FileTextOutlined />, label: "Audit Logs", permission: "audit-log:read" },
+  { key: "/categories", icon: <AppstoreOutlined />, label: "Categories", permission: "category:read" },
+  { key: "/products", icon: <ShoppingOutlined />, label: "Products", permission: "product:read" },
 ];
 
 export default function Sidebar() {

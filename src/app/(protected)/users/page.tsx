@@ -94,22 +94,6 @@ export default function UsersPage() {
     setModalOpen(true);
   };
 
-  useEffect(() => {
-    if (!modalOpen) return;
-    if (editTarget) {
-      form.setFieldsValue({
-        email: editTarget.email,
-        username: editTarget.username,
-        name: editTarget.name,
-        accountType: editTarget.accountType,
-        roleId: editTarget.roleId,
-        isActive: editTarget.isActive,
-      });
-    } else {
-      form.resetFields();
-    }
-  }, [editTarget, modalOpen, form]);
-
   const handleSubmit = async (values: CreateUserRequest & { isActive?: boolean }) => {
     setSubmitting(true);
     try {
@@ -317,6 +301,21 @@ export default function UsersPage() {
         confirmLoading={submitting}
         width={520}
         destroyOnHidden
+        afterOpenChange={(open) => {
+          if (!open) return;
+          if (editTarget) {
+            form.setFieldsValue({
+              email: editTarget.email,
+              username: editTarget.username,
+              name: editTarget.name,
+              accountType: editTarget.accountType,
+              roleId: editTarget.roleId,
+              isActive: editTarget.isActive,
+            });
+          } else {
+            form.resetFields();
+          }
+        }}
       >
         <Form
           form={form}
