@@ -16,6 +16,7 @@
    - [Dashboard](#dashboard)
    - [Categories](#categories)
    - [Products](#products)
+   - [Customer Profile](#customer-profile)
 7. [Standard Response Format](#standard-response-format)
 8. [Authentication & Authorization](#authentication--authorization)
 9. [Global Providers](#global-providers)
@@ -29,12 +30,14 @@
 
 A RESTful NestJS API providing:
 
-- JWT-based authentication (login / register)
-- Role-based access control (RBAC) with fine-grained permission strings
+- JWT-based authentication — separate login flows for admin panel and shop
+- Role-based access control (RBAC) with fine-grained permission strings (admin/staff only)
+- User type system: `ADMIN`, `STAFF`, `CUSTOMER`
 - Full user and role management
+- Customer profile management (customers update their own profile after registration)
 - Automatic audit logging for every request/response
 - Dashboard analytics (summary counts, recent logs, user registration trend)
-- Product catalogue management with category organisation
+- Product catalogue management with category organisation — public read access
 - Standardised API response envelope and global exception handling
 
 ---
@@ -91,14 +94,15 @@ src/
 │       └── hash.util.ts           hashPassword / comparePassword (bcrypt)
 │
 └── modules/
-    ├── auth/          Login, Register
-    ├── user/          User CRUD
-    ├── roles/         Role CRUD
-    ├── permissions/   In-memory permission registry
-    ├── audit-log/     Audit log query endpoint
-    ├── dashboard/     Analytics endpoints
-    ├── category/      Category CRUD
-    └── product/       Product CRUD
+    ├── auth/               Login (shop + admin), Register
+    ├── user/               User CRUD
+    ├── roles/              Role CRUD
+    ├── permissions/        In-memory permission registry
+    ├── audit-log/          Audit log query endpoint
+    ├── dashboard/          Analytics endpoints
+    ├── category/           Category CRUD
+    ├── product/            Product CRUD
+    └── customer-profile/   Customer self-service profile
 ```
 
 ---
@@ -136,7 +140,20 @@ Copy `.env.example` to `.env` and fill in values.
 | `name` | `String?` | |
 | `isActive` | `Boolean` | Default `false` |
 | `accountType` | `AccountType` | `LOCAL` \| `GOOGLE` \| `GITHUB` |
-| `roleId` | `Int` FK → `roles.id` | |
+| `userType` | `UserType` | `ADMIN` \| `STAFF` \| `CUSTOMER` — Default `CUSTOMER` |
+| `roleId` | `Int?` FK → `roles.id` | Null for `CUSTOMER` users (no RBAC) |
+| `createdAt` | `DateTime` | |
+| `updatedAt` | `DateTime` | |
+
+### `customer_profiles`
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `Int` PK | Auto-increment |
+| `userId` | `Int` unique FK → `users.id` | One-to-one with user |
+| `fullName` | `String?` | |
+| `phone` | `String?` | |
+| `address` | `String?` | |
 | `createdAt` | `DateTime` | |
 | `updatedAt` | `DateTime` | |
 
@@ -208,7 +225,7 @@ Authorization: Bearer <accessToken>
 
 #### `POST /v1/auth/login` — Public
 
-Login and receive a JWT.
+Shop page login. Only `CUSTOMER` accounts are accepted.
 
 **Request body:**
 ```json
@@ -225,13 +242,30 @@ Login and receive a JWT.
 }
 ```
 
-**Errors:** `400` validation, `401` invalid credentials.
+**Errors:** `400` validation, `401` invalid credentials or non-customer account.
+
+---
+
+#### `POST /v1/auth/admin/login` — Public
+
+Admin panel login. Only `ADMIN` and `STAFF` accounts are accepted.
+
+**Request body:**
+```json
+{ "username": "admin", "password": "admin-password" }
+```
+
+**Response `200`:** Same as shop login — returns `{ accessToken }`.
+
+The issued JWT will contain the user's RBAC `permissions` array.
+
+**Errors:** `400` validation, `401` invalid credentials or customer account.
 
 ---
 
 #### `POST /v1/auth/register` — Public
 
-Register a new user.
+Register a new **customer** account (shop page only). Admin/staff accounts cannot be self-registered.
 
 **Request body:**
 ```json
@@ -239,11 +273,11 @@ Register a new user.
   "username": "alice",
   "email": "alice@example.com",
   "password": "my-password",
-  "name": "Alice",
-  "accountType": "LOCAL",
-  "roleId": 1
+  "name": "Alice"
 }
 ```
+
+`accountType` is automatically set to `LOCAL`. `userType` is automatically set to `CUSTOMER`.
 
 **Response `200`:** Created user object.
 
@@ -286,6 +320,7 @@ List users with pagination and filters.
 | `name` | string | Case-insensitive partial match |
 | `isActive` | boolean | Filter by active state |
 | `accountType` | enum | `LOCAL` \| `GOOGLE` \| `GITHUB` |
+| `userType` | enum | `ADMIN` \| `STAFF` \| `CUSTOMER` |
 | `roleId` | number | Filter by role |
 | `page` | number | Default `1` |
 | `limit` | number | Default `10` |
@@ -480,9 +515,9 @@ Returns daily user registration counts for the past N days.
 
 ### Categories
 
-> Requires authentication.
-
 #### `POST /v1/categories` — `category:create`
+
+> Requires authentication + `category:create` permission.
 
 Create a new category.
 
@@ -496,15 +531,15 @@ Create a new category.
 
 ---
 
-#### `GET /v1/categories` — `category:read`
+#### `GET /v1/categories` — Public
 
-List all categories.
+List all categories. No authentication required.
 
 ---
 
-#### `GET /v1/categories/:id` — `category:read`
+#### `GET /v1/categories/:id` — Public
 
-Get a single category by ID.
+Get a single category by ID. No authentication required.
 
 **Errors:** `404` if not found.
 
@@ -528,9 +563,9 @@ Delete a category by ID.
 
 ### Products
 
-> Requires authentication.
-
 #### `POST /v1/products` — `product:create`
+
+> Requires authentication + `product:create` permission.
 
 Create a new product.
 
@@ -551,9 +586,9 @@ Create a new product.
 
 ---
 
-#### `GET /v1/products` — `product:read`
+#### `GET /v1/products` — Public
 
-List products with optional filters and pagination.
+List products with optional filters and pagination. No authentication required.
 
 **Query parameters:**
 
@@ -595,9 +630,9 @@ List products with optional filters and pagination.
 
 ---
 
-#### `GET /v1/products/:id` — `product:read`
+#### `GET /v1/products/:id` — Public
 
-Get a single product by ID. Includes the related `category` object.
+Get a single product by ID. No authentication required. Includes the related `category` object.
 
 **Errors:** `404` if not found.
 
@@ -616,6 +651,55 @@ Update a product. All fields are optional.
 Delete a product by ID.
 
 **Errors:** `404` if not found.
+
+---
+
+### Customer Profile
+
+> Requires authentication (CUSTOMER JWT only). `ADMIN` / `STAFF` tokens are rejected with `403`.
+
+#### `GET /v1/customer/profile`
+
+Return the authenticated customer's profile.
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "statusCode": 200,
+  "data": {
+    "id": 1,
+    "userId": 5,
+    "fullName": "Alice Smith",
+    "phone": "+1234567890",
+    "address": "123 Main St",
+    "createdAt": "2026-05-14T00:00:00.000Z",
+    "updatedAt": "2026-05-14T00:00:00.000Z"
+  },
+  "timestamp": "..."
+}
+```
+
+**Errors:** `403` non-customer token, `404` profile not yet created.
+
+---
+
+#### `PUT /v1/customer/profile`
+
+Create or update the authenticated customer's profile (upsert). All fields are optional.
+
+**Request body:**
+```json
+{
+  "fullName": "Alice Smith",
+  "phone": "+1234567890",
+  "address": "123 Main St"
+}
+```
+
+**Response `200`:** Updated profile object.
+
+**Errors:** `403` non-customer token, `400` validation.
 
 ---
 
@@ -688,11 +772,22 @@ The flow on every request:
 {
   "sub": 1,
   "username": "alice",
+  "userType": "ADMIN",
   "permissions": ["user:read", "role:read"]
 }
 ```
 
-Permissions are loaded from the user's role at login time and embedded in the token.
+- `userType` — always present; one of `ADMIN`, `STAFF`, `CUSTOMER`.
+- `permissions` — loaded from the user's role at login time. Empty array `[]` for `CUSTOMER` users (no RBAC).
+- Use `"permissions": ["*"]` on a role to grant full admin access.
+
+### User type rules
+
+| `userType` | Login endpoint | RBAC | Self-register |
+|-----------|---------------|------|---------------|
+| `CUSTOMER` | `POST /auth/login` | ✗ | ✅ |
+| `STAFF` | `POST /auth/admin/login` | ✅ | ✗ |
+| `ADMIN` | `POST /auth/admin/login` | ✅ | ✗ |
 
 ---
 
@@ -731,6 +826,8 @@ The codebase separates reads from writes:
 | `CategoryRepository` | `create`, `update`, `delete` |
 | `ProductQueries` | `find`, `findOne`, `findUnique`, `count` |
 | `ProductRepository` | `create`, `update`, `delete` |
+| `CustomerProfileQueries` | `findOne`, `findUnique` |
+| `CustomerProfileRepository` | `create`, `update`, `upsert` |
 
 All classes extend `BaseQueries` / `BaseRepository` from `src/common/bases/`.
 

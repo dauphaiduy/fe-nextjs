@@ -1,4 +1,5 @@
 export type AccountType = "LOCAL" | "GOOGLE" | "GITHUB";
+export type UserType = "ADMIN" | "STAFF" | "CUSTOMER";
 
 export interface User {
   id: number;
@@ -7,6 +8,7 @@ export interface User {
   name?: string;
   isActive: boolean;
   accountType: AccountType;
+  userType: UserType;
   roleId: number;
   createdAt: string;
   updatedAt: string;
@@ -18,6 +20,7 @@ export interface CreateUserRequest {
   password: string;
   name?: string;
   accountType: AccountType;
+  userType: UserType;
   roleId: number;
 }
 
@@ -32,6 +35,7 @@ export interface UserListQuery {
   name?: string;
   isActive?: boolean;
   accountType?: AccountType;
+  userType?: UserType;
   roleId?: number;
   page?: number;
   limit?: number;

@@ -18,7 +18,12 @@ export default function LoginForm() {
         redirect: false,
       });
       if (result?.error) {
-        message.error("Invalid username or password");
+        const errorMessages: Record<string, string> = {
+          account_inactive: "Your account is inactive. Please contact the administrator.",
+          admin_only: "This portal is for admin and staff accounts only.",
+          invalid_credentials: "Invalid username or password.",
+        };
+        message.error(errorMessages[result.error] ?? "Login failed. Please try again.");
       } else {
         router.push("/dashboard");
         router.refresh();

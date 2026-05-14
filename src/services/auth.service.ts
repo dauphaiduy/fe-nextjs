@@ -3,8 +3,8 @@ import type { AuthToken, LoginRequest, RegisterRequest } from "@/modules/auth/ty
 import type { User } from "@/types/user";
 
 export const authService = {
-  login: (body: LoginRequest) =>
-    apiClient.post<AuthToken>("/auth/login", body),
+  adminLogin: (body: LoginRequest) =>
+    apiClient.post<AuthToken>("/auth/admin/login", body),
 
   register: (body: RegisterRequest) =>
     apiClient.post<User>("/auth/register", body),

@@ -22,7 +22,7 @@ import { PlusOutlined, EditOutlined, SearchOutlined, ReloadOutlined } from "@ant
 import type { ColumnsType } from "antd/es/table";
 import { userService } from "@/services/user.service";
 import { roleService } from "@/services/role.service";
-import type { User, CreateUserRequest, UpdateUserRequest, UserListQuery } from "@/types/user";
+import type { User, CreateUserRequest, UpdateUserRequest, UserListQuery, UserType } from "@/types/user";
 import type { Role } from "@/types/role";
 import type { PaginatedData } from "@/types/api";
 import { useAuth } from "@/hooks/useAuth";
@@ -32,6 +32,12 @@ const { Title } = Typography;
 const { Option } = Select;
 
 const ACCOUNT_TYPES = ["LOCAL", "GOOGLE", "GITHUB"] as const;
+const USER_TYPES: UserType[] = ["ADMIN", "STAFF", "CUSTOMER"];
+const USER_TYPE_COLORS: Record<UserType, string> = {
+  ADMIN: "red",
+  STAFF: "blue",
+  CUSTOMER: "green",
+};
 
 export default function UsersPage() {
   const { hasPermission } = useAuth();
@@ -104,6 +110,7 @@ export default function UsersPage() {
           username: updateValues.username,
           name: updateValues.name,
           accountType: updateValues.accountType,
+          userType: updateValues.userType,
           roleId: updateValues.roleId,
           isActive: updateValues.isActive ?? editTarget.isActive,
         };
@@ -161,6 +168,12 @@ export default function UsersPage() {
       dataIndex: "accountType",
       width: 90,
       render: (v: string) => <Tag>{v}</Tag>,
+    },
+    {
+      title: "User Type",
+      dataIndex: "userType",
+      width: 100,
+      render: (v: UserType) => <Tag color={USER_TYPE_COLORS[v]}>{v}</Tag>,
     },
     {
       title: "Role",
@@ -239,6 +252,15 @@ export default function UsersPage() {
               ))}
             </Select>
           </Form.Item>
+          <Form.Item name="userType">
+            <Select placeholder="User type" allowClear style={{ width: 130 }}>
+              {USER_TYPES.map((t) => (
+                <Option key={t} value={t}>
+                  {t}
+                </Option>
+              ))}
+            </Select>
+          </Form.Item>
           <Form.Item name="roleId">
             <Select placeholder="Role" allowClear style={{ width: 130 }}>
               {roles.map((r) => (
@@ -309,6 +331,7 @@ export default function UsersPage() {
               username: editTarget.username,
               name: editTarget.name,
               accountType: editTarget.accountType,
+              userType: editTarget.userType,
               roleId: editTarget.roleId,
               isActive: editTarget.isActive,
             });
@@ -358,6 +381,20 @@ export default function UsersPage() {
           >
             <Select>
               {ACCOUNT_TYPES.map((t) => (
+                <Option key={t} value={t}>
+                  {t}
+                </Option>
+              ))}
+            </Select>
+          </Form.Item>
+          <Form.Item
+            name="userType"
+            label="User Type"
+            rules={[{ required: true, message: "User type is required" }]}
+            initialValue="STAFF"
+          >
+            <Select>
+              {USER_TYPES.map((t) => (
                 <Option key={t} value={t}>
                   {t}
                 </Option>
